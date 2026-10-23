@@ -55,3 +55,25 @@ export function formatLoggedAtLabel(iso: string): string {
     minute: "2-digit",
   }).format(date);
 }
+
+export function weekdayIndexForLocalDate(value: string): number | null {
+  const match = LOCAL_DATE_RE.exec(value);
+  if (!match) return null;
+  return new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  ).getDay();
+}
+
+/** Most recent occurrence of `weekday` (0=Sun … 6=Sat) strictly before `today`. */
+export function mostRecentPastWeekday(
+  today: string,
+  weekday: number,
+): string | null {
+  if (!isLocalDateString(today) || weekday < 0 || weekday > 6) return null;
+  const current = weekdayIndexForLocalDate(today);
+  if (current == null) return null;
+  const delta = (current - weekday + 7) % 7 || 7;
+  return shiftLocalDate(today, -delta);
+}

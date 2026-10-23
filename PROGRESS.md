@@ -11,6 +11,12 @@ Next: Phase 7 — hands-free polish, errors, production deploy. Do not reimpleme
 
 **2026-10-23 estimate overlay:** Log meal / Confirm use opaque `#245c45`. Review portals to `document.body` with `#f3f0e8`. Composer/photo sheets hide while estimate is open. Phase 7 still not started.
 
+**2026-10-23 repeat meals:** Composer copies an own confirmed meal from yesterday/today/weekdays without Gemini. Browser: “same chicken meal I had today” opened review at 1010 kcal; “repeat my meal from today” listed 4 choices; “breakfast from yesterday” showed no match. `npm test` 45 passed; lint/typecheck/build pass. Phase 7 still not started.
+
+**2026-10-23 historical log date:** Home and History share the day picker and composer. Meals save to the selected `local_date`. Browser: Oct 22 + “One banana” confirmed at 105 kcal on that day; Today still 4 meals / 1,596 kcal, no banana. `npm test` 55 passed; lint/typecheck/build pass. Phase 7 still not started.
+
+**2026-10-23 meal edit/delete:** Saved meal cards open a detail sheet; Edit reuses the confirm editor (update, not insert); Delete asks first. Browser: Coffee delete cancelled (4 meals remained); renamed to Morning coffee, still 4 meals / 1,596 kcal. `npm test` 58 passed; lint/typecheck pass. Phase 7 still not started.
+
 | Phase | Objective | Status | Date | Proof |
 | ----- | --------- | ------ | ---- | ----- |
 | 0 | Agent memory + Next.js shell | Done | 2026-10-22 | `npm run lint` and `npm run build` pass; http://localhost:3000 title SnapBite, tagline Eat Snap Track, 390px-wide card |

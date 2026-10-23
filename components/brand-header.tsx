@@ -15,9 +15,9 @@ export function BrandHeader() {
         {dashboard ? (
           <div>
             <h1 className="font-display text-[1.85rem] leading-tight font-medium tracking-tight text-foreground">
-              SnapBite
+              SayMeal
             </h1>
-            <h2 className="text-sm text-muted">Eat Snap Track</h2>
+            <h2 className="text-sm text-muted">say it, track it</h2>
             <TodayDate />
           </div>
         ) : history ? (

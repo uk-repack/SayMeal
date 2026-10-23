@@ -9,21 +9,43 @@ import {
 } from "@/components/icons";
 import { MealConfirmSheet } from "@/components/meal-confirm-sheet";
 import { PhotoEntry } from "@/components/photo-entry";
-import { localDateString } from "@/lib/dates/local-date";
+import { formatLocalDateHeading } from "@/lib/dates/local-date";
+import { useLocalToday } from "@/lib/dates/use-local-today";
 import {
   MEAL_TEXT_MAX,
   type EstimatedMeal,
   validateMealText,
 } from "@/lib/meals/estimate";
+import { fetchOwnConfirmedMealRowsForLocalDate } from "@/lib/meals/fetch";
+import {
+  persistableLocalDate,
+  resolveMealLogDate,
+  type LogDateResolution,
+} from "@/lib/meals/log-date";
 import { insertOwnConfirmedMeal } from "@/lib/meals/persist";
+import {
+  candidateFromMealRow,
+  estimatedMealFromSaved,
+  matchRepeatMeals,
+  parseRepeatMealCommand,
+  type RepeatMealCandidate,
+} from "@/lib/meals/repeat";
+import type { MealSource } from "@/lib/types";
 
 type MealComposerProps = {
+  selectedDate?: string;
   onMealSaved?: () => void;
 };
 
 type ComposerMode = "collapsed" | "text" | "photo";
 
-export function MealComposer({ onMealSaved }: MealComposerProps) {
+export function MealComposer({ selectedDate, onMealSaved }: MealComposerProps) {
+  const today = useLocalToday();
+  const viewingDate =
+    persistableLocalDate(selectedDate ?? today ?? "", today ?? selectedDate ?? "") ??
+    selectedDate ??
+    today ??
+    "";
   const fieldId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<ComposerMode>("collapsed");
@@ -34,6 +56,30 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
   const [saving, setSaving] = useState(false);
   const [estimate, setEstimate] = useState<EstimatedMeal | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [choices, setChoices] = useState<RepeatMealCandidate[]>([]);
+  const [repeatSource, setRepeatSource] = useState<MealSource>("text");
+  const [repeatRawText, setRepeatRawText] = useState<string | null>(null);
+  const [dateOverride, setDateOverride] = useState<string | null>(null);
+  const [overrideFor, setOverrideFor] = useState<string | null>(null);
+  const [dateConflict, setDateConflict] = useState<Extract<
+    LogDateResolution,
+    { status: "conflict" }
+  > | null>(null);
+  const submitLock = useRef(false);
+  const confirmLock = useRef(false);
+  const saveDateRef = useRef(viewingDate);
+  const saveDate =
+    dateOverride && overrideFor === viewingDate ? dateOverride : viewingDate;
+  const activeConflict =
+    dateConflict && dateConflict.selectedDate === viewingDate
+      ? dateConflict
+      : null;
+
+  function chooseSaveDate(date: string) {
+    saveDateRef.current = date;
+    setDateOverride(date);
+    setOverrideFor(viewingDate);
+  }
 
   useEffect(() => {
     if (mode === "text") {
@@ -46,11 +92,29 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
     setMode("collapsed");
     setStatus(null);
     setError(null);
+    setChoices([]);
+    setDateConflict(null);
+  }
+
+  function openCopiedMeal(saved: RepeatMealCandidate) {
+    const copied = estimatedMealFromSaved(saved);
+    if (!copied.meal) {
+      setEstimate(null);
+      setError(copied.error ?? "Could not copy that meal.");
+      setStatus(null);
+      return;
+    }
+    setRepeatSource(saved.source);
+    setRepeatRawText(saved.rawText);
+    setChoices([]);
+    setEstimate(copied.meal);
+    setStatus(null);
+    setError(null);
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (estimating || saving) return;
+    if (estimating || saving || submitLock.current || !today || !viewingDate) return;
 
     const { text: cleaned, error: textError } = validateMealText(text);
     if (!cleaned) {
@@ -59,6 +123,80 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
       return;
     }
 
+    submitLock.current = true;
+    setEstimating(true);
+    setError(null);
+    setChoices([]);
+    setRepeatSource("text");
+    setRepeatRawText(null);
+    setDateConflict(null);
+    chooseSaveDate(viewingDate);
+
+    const parsed = parseRepeatMealCommand(cleaned, today);
+    if (parsed.status === "unsupported") {
+      setEstimate(null);
+      setError(parsed.message);
+      setStatus(null);
+      setEstimating(false);
+      submitLock.current = false;
+      return;
+    }
+
+    if (parsed.status === "repeat") {
+      setStatus("Looking up that meal…");
+      try {
+        const { rows, error: fetchError } =
+          await fetchOwnConfirmedMealRowsForLocalDate(parsed.command.date);
+        if (fetchError) {
+          setEstimate(null);
+          setError(fetchError);
+          setStatus(null);
+          return;
+        }
+        const matches = matchRepeatMeals(
+          parsed.command,
+          rows.map(candidateFromMealRow),
+        );
+        if (matches.length === 0) {
+          setEstimate(null);
+          setError(
+            "No matching previous meal was found. Try another day, or describe the meal instead.",
+          );
+          setStatus(null);
+          return;
+        }
+        if (matches.length === 1) {
+          openCopiedMeal(matches[0]);
+          return;
+        }
+        setEstimate(null);
+        setChoices(matches);
+        setStatus(null);
+      } finally {
+        setEstimating(false);
+        submitLock.current = false;
+      }
+      return;
+    }
+
+    const dateResolution = resolveMealLogDate({
+      selectedDate: viewingDate,
+      text: cleaned,
+      today,
+    });
+    if (dateResolution.status === "conflict") {
+      setDateConflict(dateResolution);
+      setStatus(null);
+      setEstimating(false);
+      submitLock.current = false;
+      return;
+    }
+    chooseSaveDate(dateResolution.date);
+    await estimateMeal(cleaned);
+  }
+
+  async function estimateMeal(cleaned: string) {
+    submitLock.current = true;
     setEstimating(true);
     setError(null);
     setStatus("Estimating nutrition…");
@@ -87,24 +225,31 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
       setStatus(null);
     } finally {
       setEstimating(false);
+      submitLock.current = false;
     }
   }
 
   async function onConfirm(meal: EstimatedMeal) {
-    if (saving) return;
+    if (saving || confirmLock.current) return;
+    confirmLock.current = true;
     setSaving(true);
     setSaveError(null);
     const result = await insertOwnConfirmedMeal({
       meal,
-      rawText: text.trim(),
-      localDate: localDateString(),
+      rawText: (repeatRawText ?? text).trim(),
+      localDate: saveDateRef.current,
+      source: repeatSource,
     });
     setSaving(false);
+    confirmLock.current = false;
     if (result.error) {
       setSaveError(result.error);
       return;
     }
     setEstimate(null);
+    setChoices([]);
+    setRepeatRawText(null);
+    setRepeatSource("text");
     setText("");
     setError(null);
     setStatus(null);
@@ -159,7 +304,9 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
                   What did you eat?
                 </p>
                 <p className="mt-1 text-sm text-muted">
-                  Type, or dictate with Wispr Flow.
+                  {viewingDate === today
+                    ? "Type, or dictate with Wispr Flow."
+                    : `Logging for ${formatLocalDateHeading(viewingDate)}.`}
                 </p>
               </div>
               <button
@@ -188,6 +335,8 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
                   setText(event.target.value);
                   if (status) setStatus(null);
                   if (error) setError(null);
+                  if (choices.length) setChoices([]);
+                  if (activeConflict) setDateConflict(null);
                 }}
                 placeholder="Grilled salmon, a cup of brown rice, broccoli and a little lemon dressing."
                 autoComplete="off"
@@ -226,12 +375,76 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
                 {error}
               </p>
             ) : null}
+            {activeConflict ? (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm text-muted">
+                  That sounds like {formatLocalDateHeading(activeConflict.explicitDate)},
+                  not {formatLocalDateHeading(activeConflict.selectedDate)}. Which day
+                  should we log?
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    className="rounded-full bg-[#245c45] py-2.5 text-sm font-medium text-white"
+                    onClick={() => {
+                      chooseSaveDate(activeConflict.explicitDate);
+                      setDateConflict(null);
+                      void estimateMeal(text.trim());
+                    }}
+                  >
+                    Log on {formatLocalDateHeading(activeConflict.explicitDate)}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-[#d7d3c8] bg-white py-2.5 text-sm font-medium text-foreground"
+                    onClick={() => {
+                      chooseSaveDate(activeConflict.selectedDate);
+                      setDateConflict(null);
+                      void estimateMeal(text.trim());
+                    }}
+                  >
+                    Keep {formatLocalDateHeading(activeConflict.selectedDate)}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {choices.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm text-muted">
+                  Several meals match. Pick one to review.
+                </p>
+                <ul className="space-y-2">
+                  {choices.map((meal) => (
+                    <li key={meal.id}>
+                      <button
+                        type="button"
+                        onClick={() => openCopiedMeal(meal)}
+                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#e2dfd6] bg-white px-4 py-3 text-left"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-foreground">
+                            {meal.title}
+                          </span>
+                          <span className="mt-0.5 block text-sm text-muted">
+                            {meal.loggedAtLabel}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-sm tabular-nums text-foreground">
+                          {meal.calories} kcal
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
 
       {mode === "photo" && !estimate ? (
         <PhotoEntry
+          selectedDate={viewingDate}
           onMealSaved={onMealSaved}
           onCollapse={collapse}
           onUseText={() => setMode("text")}
@@ -243,6 +456,7 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
           meal={estimate}
           saving={saving}
           error={saveError}
+          localDate={saveDate}
           source="text"
           onCancel={() => {
             if (saving) return;

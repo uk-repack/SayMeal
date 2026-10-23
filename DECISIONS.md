@@ -61,6 +61,27 @@ Append-only. Do not rewrite history; add a new dated entry if something changes.
 - The onboarding page waits until the own-profile fetch resolves before rendering the form, so completed users do not see an empty form flash then a dashboard bounce.
 - Header: discreet “Edit targets” / “Today” links. No schema or RLS change.
 
+## 2026-10-23 — Edit and delete saved meals
+
+- Meal cards open a detail overlay (same cream full-screen pattern as review). Edit and Delete live there, not on every card.
+- Edit opens the existing confirm sheet prefilled from saved items (`estimatedMealFromLogged`). Save calls `updateOwnConfirmedMeal` on that `id` + `auth.uid()`; no insert, no Gemini. Delete requires a second confirm; Cancel leaves the row. Both require a returned row or they report failure.
+- After a successful write, the selected day's list and totals refetch. `local_date`, `user_id`, `logged_at`, and `source` are not rewritten. RLS unchanged; no service-role key.
+
+## 2026-10-23 — Log meals on a selected history date
+
+- Home dashboard reuses the History day picker. Totals and meal list follow the selected local calendar date. Composer stays on the same screen (also on `/history`). No extra logging page.
+- Save uses that selected `local_date` for text, photo, and repeat copies. `insertOwnConfirmedMeal` still sets `user_id` from `auth.getUser()` and rejects invalid dates instead of substituting today for a past day.
+- Description dates are parsed deterministically (`yesterday` / `today` / `last night` / `on Monday` / `Monday's`). Bare weekday food names are ignored. If the mentioned day differs from the picker, the composer asks which day to use before Gemini. Repeat-command “yesterday” still means lookup day; the copy is saved to the selected day.
+- Day fetches drop cancelled or out-of-order responses (`shouldApplyDayFetch`). Confirm sheet remaining calories load meals for the target date. No schema, RLS, or extra Gemini date call.
+
+## 2026-10-23 — Repeat previous meal (NL commands)
+
+- Deterministic parser in `lib/meals/repeat.ts` (no extra LLM). Supported: repeat/copy/again/the same plus yesterday, today, last night, or a weekday; or `log`/`add` + breakfast/lunch/dinner + that day with no extra food words.
+- Normal descriptions, questions, and nutrition phrasing stay on `POST /api/meals/estimate`. Copy intent without a day is an in-composer error, not Gemini.
+- Lookup uses existing own confirmed rows for that local calendar date (`fetchOwnConfirmedMealRowsForLocalDate` + RLS). Slot match: saved title/raw_text/item names, else local `logged_at` hour windows. Food query matches those strings. Eggs at dinner are not breakfast unless the saved text says so.
+- One match → existing confirm sheet with saved items/totals. Several matches → compact choice list in the composer. None → retry message. Confirm inserts a **new** row for `localDateString()`; original id/user_id/timestamps are not copied. `source` is preserved. Submit/confirm locks block double clicks.
+- No schema, RLS, Gemini, or photo-storage change.
+
 ## 2026-10-23 — History Phase 1 (read-only)
 
 - `/history` loads confirmed `meals` for one `local_date` via existing `fetchOwnMealsForLocalDate`. No extra table, no all-time fetch.

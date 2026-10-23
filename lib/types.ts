@@ -8,6 +8,7 @@ export type MealItem = {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  notes?: string;
 };
 
 export type Meal = {

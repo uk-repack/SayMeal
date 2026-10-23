@@ -44,6 +44,8 @@ function mapItems(items: unknown): MealItem[] {
           (row.carbsG ?? row.carbs_g) as number | string | undefined,
         ),
         fatG: toNumber((row.fatG ?? row.fat_g) as number | string | undefined),
+        notes:
+          typeof row.notes === "string" ? row.notes.trim().slice(0, 240) : "",
       },
     ];
   });
@@ -63,14 +65,14 @@ export function mapMealRow(row: MealRow): Meal {
   };
 }
 
-export async function fetchOwnMealsForLocalDate(localDate: string): Promise<{
-  meals: Meal[];
+async function queryOwnConfirmedMeals(localDate: string): Promise<{
+  rows: MealRow[];
   error: string | null;
 }> {
   const supabase = createSupabaseBrowserClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
-    return { meals: [], error: userError?.message ?? "No session yet." };
+    return { rows: [], error: userError?.message ?? "No session yet." };
   }
 
   const { data, error } = await supabase
@@ -84,11 +86,26 @@ export async function fetchOwnMealsForLocalDate(localDate: string): Promise<{
     .order("logged_at", { ascending: false });
 
   if (error) {
-    return { meals: [], error: error.message };
+    return { rows: [], error: error.message };
   }
 
-  return {
-    meals: ((data ?? []) as MealRow[]).map(mapMealRow),
-    error: null,
-  };
+  return { rows: (data ?? []) as MealRow[], error: null };
+}
+
+export async function fetchOwnMealsForLocalDate(localDate: string): Promise<{
+  meals: Meal[];
+  error: string | null;
+}> {
+  const { rows, error } = await queryOwnConfirmedMeals(localDate);
+  if (error) return { meals: [], error };
+  return { meals: rows.map(mapMealRow), error: null };
+}
+
+export async function fetchOwnConfirmedMealRowsForLocalDate(
+  localDate: string,
+): Promise<{
+  rows: MealRow[];
+  error: string | null;
+}> {
+  return queryOwnConfirmedMeals(localDate);
 }

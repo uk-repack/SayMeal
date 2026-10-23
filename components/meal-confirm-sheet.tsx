@@ -30,6 +30,9 @@ type MealConfirmSheetProps = {
   error: string | null;
   photoPreviewUrl?: string | null;
   source?: "text" | "photo";
+  localDate?: string;
+  mode?: "create" | "edit";
+  excludeMealId?: string;
   onCancel: () => void;
   onBack?: () => void;
   onConfirm: (meal: EstimatedMeal) => void;
@@ -50,6 +53,9 @@ export function MealConfirmSheet({
   error,
   photoPreviewUrl,
   source = "text",
+  localDate,
+  mode = "create",
+  excludeMealId,
   onCancel,
   onBack,
   onConfirm,
@@ -69,7 +75,7 @@ export function MealConfirmSheet({
     let cancelled = false;
     void Promise.all([
       fetchOwnProfile(),
-      fetchOwnMealsForLocalDate(localDateString()),
+      fetchOwnMealsForLocalDate(localDate ?? localDateString()),
     ]).then(([profileResult, mealsResult]) => {
       if (cancelled) return;
       const profile = profileResult.profile;
@@ -83,12 +89,16 @@ export function MealConfirmSheet({
             }
           : null,
       );
-      setPrior(sumMeals(mealsResult.meals));
+      setPrior(
+        sumMeals(
+          mealsResult.meals.filter((row) => row.id !== excludeMealId),
+        ),
+      );
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [localDate, excludeMealId]);
 
   const preview = useMemo(
     () =>
@@ -165,10 +175,12 @@ export function MealConfirmSheet({
             id="confirm-meal-heading"
             className="font-display mt-6 text-[2rem] leading-tight font-medium tracking-tight text-foreground"
           >
-            A closer look.
+            {mode === "edit" ? "Edit meal." : "A closer look."}
           </h2>
           <p className="mt-2 text-sm text-forest">
-            AI estimate · Not logged yet
+            {mode === "edit"
+              ? "Saved meal · Not a new estimate"
+              : "AI estimate · Not logged yet"}
           </p>
 
           {photoPreviewUrl ? (
@@ -341,7 +353,11 @@ export function MealConfirmSheet({
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#245c45] py-3.5 text-base font-medium text-white disabled:cursor-not-allowed disabled:bg-[#c5c2b8] disabled:text-white"
             disabled={saving || Boolean(validation.error)}
           >
-            {saving ? "Saving…" : "Confirm & log meal"}
+            {saving
+              ? "Saving…"
+              : mode === "edit"
+                ? "Save changes"
+                : "Confirm & log meal"}
             {saving ? null : <CheckIcon className="h-5 w-5" />}
           </button>
           <button

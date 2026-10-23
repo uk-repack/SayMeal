@@ -4,7 +4,9 @@ import {
   formatLocalDateHeading,
   isLocalDateString,
   localDateString,
+  mostRecentPastWeekday,
   shiftLocalDate,
+  weekdayIndexForLocalDate,
 } from "@/lib/dates/local-date";
 
 describe("local calendar dates", () => {
@@ -34,5 +36,11 @@ describe("local calendar dates", () => {
 
   it("formats a heading without UTC conversion", () => {
     expect(formatLocalDateHeading("2026-10-22")).toBe("Thu, October 22, 2026");
+  });
+
+  it("resolves weekdays from local calendar dates, not UTC ISO slicing", () => {
+    expect(weekdayIndexForLocalDate("2026-10-23")).toBe(5);
+    expect(mostRecentPastWeekday("2026-10-23", 1)).toBe("2026-10-19");
+    expect(mostRecentPastWeekday("2026-10-19", 1)).toBe("2026-10-12");
   });
 });

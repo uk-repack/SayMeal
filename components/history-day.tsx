@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BrandHeader } from "@/components/brand-header";
-import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { DayDateSelector } from "@/components/day-date-selector";
+import { MealComposer } from "@/components/meal-composer";
 import { MealList } from "@/components/meal-list";
 import { ProfileGate } from "@/components/profile-gate";
 import { useAuthUser } from "@/lib/auth/use-auth-user";
-import {
-  clampLocalDateToToday,
-  formatLocalDateHeading,
-  localDateString,
-  shiftLocalDate,
-} from "@/lib/dates/local-date";
+import { useLocalToday } from "@/lib/dates/use-local-today";
 import { fetchOwnMealsForLocalDate } from "@/lib/meals/fetch";
+import { shouldApplyDayFetch } from "@/lib/meals/log-date";
 import { sumMeals } from "@/lib/nutrition/totals";
 import type { Meal } from "@/lib/types";
 
@@ -26,78 +23,56 @@ export function HistoryDay() {
 
 function HistoryScreen() {
   const auth = useAuthUser();
-  const today = localDateString();
-  const [selectedDate, setSelectedDate] = useState(today);
+  const today = useLocalToday();
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const selectedDate = pickedDate ?? today;
+  const [refreshToken, setRefreshToken] = useState(0);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadedDate, setLoadedDate] = useState<string | null>(null);
   const userId = auth.status === "ready" ? auth.userId : null;
-  const atToday = selectedDate >= today;
-  const loading = loadedDate !== selectedDate;
+  const loading = !selectedDate || loadedDate !== selectedDate;
+  const selectedDateRef = useRef(selectedDate);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !selectedDate) return;
 
     let cancelled = false;
-    void fetchOwnMealsForLocalDate(selectedDate).then((result) => {
-      if (cancelled) return;
+    const requestedDate = selectedDate;
+    selectedDateRef.current = requestedDate;
+    void fetchOwnMealsForLocalDate(requestedDate).then((result) => {
+      if (
+        !shouldApplyDayFetch({
+          cancelled,
+          requestedDate,
+          selectedDate: selectedDateRef.current ?? requestedDate,
+        })
+      ) {
+        return;
+      }
       setMeals(result.meals);
       setError(result.error);
-      setLoadedDate(selectedDate);
+      setLoadedDate(requestedDate);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [userId, selectedDate]);
+  }, [userId, selectedDate, refreshToken]);
 
   const totals = useMemo(() => sumMeals(meals), [meals]);
-
-  function goDays(delta: number) {
-    const next = clampLocalDateToToday(shiftLocalDate(selectedDate, delta), today);
-    setSelectedDate(next);
-  }
-
-  function onPickDate(value: string) {
-    setSelectedDate(clampLocalDateToToday(value, today));
-  }
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-cream">
       <BrandHeader />
-      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-5 pt-2 pb-10">
-        <div className="mt-4 flex items-center justify-between gap-2 rounded-[1.4rem] bg-white px-2 py-2 shadow-sm shadow-stone-900/5">
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-forest hover:bg-[#e7eee8] disabled:text-[#c5c2b8]"
-            onClick={() => goDays(-1)}
-            aria-label="Previous day"
-          >
-            <ChevronLeftIcon className="h-5 w-5" />
-          </button>
-          <label className="min-w-0 flex-1 text-center">
-            <span className="sr-only">Choose a date</span>
-            <input
-              type="date"
-              value={selectedDate}
-              max={today}
-              onChange={(event) => onPickDate(event.target.value)}
-              className="w-full bg-transparent text-center text-sm font-medium text-foreground outline-none"
-            />
-            <p className="mt-0.5 text-xs text-muted">
-              {selectedDate === today ? "Today" : formatLocalDateHeading(selectedDate)}
-            </p>
-          </label>
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-forest hover:bg-[#e7eee8] disabled:text-[#c5c2b8]"
-            onClick={() => goDays(1)}
-            disabled={atToday}
-            aria-label="Next day"
-          >
-            <ChevronRightIcon className="h-5 w-5" />
-          </button>
-        </div>
+      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-5 pt-2 pb-28">
+        {today && selectedDate ? (
+          <DayDateSelector
+            selectedDate={selectedDate}
+            today={today}
+            onChange={setPickedDate}
+          />
+        ) : null}
 
         <section className="mt-6 grid grid-cols-4 gap-2" aria-label="Day totals">
           <TotalTile label="Calories" value={totals.calories} unit="kcal" />
@@ -118,14 +93,21 @@ function HistoryScreen() {
           </p>
         ) : (
           <MealList
+            key={selectedDate ?? "day"}
             loggedMeals={meals}
             heading="Logged meals"
             emptyTitle="Nothing logged this day."
-            emptyDescription="No confirmed meals for this local calendar date. Try another day, or log a meal from Today."
+            emptyDescription="No confirmed meals for this local calendar date. Log a meal below, or try another day."
             showSource
+            localDate={selectedDate ?? undefined}
+            onMealsMutated={() => setRefreshToken((n) => n + 1)}
           />
         )}
       </main>
+      <MealComposer
+        selectedDate={selectedDate ?? undefined}
+        onMealSaved={() => setRefreshToken((n) => n + 1)}
+      />
     </div>
   );
 }

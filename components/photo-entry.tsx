@@ -3,23 +3,32 @@
 import { useId, useRef, useState, type ChangeEvent } from "react";
 import { ChevronDownIcon, CloseIcon } from "@/components/icons";
 import { MealConfirmSheet } from "@/components/meal-confirm-sheet";
-import { localDateString } from "@/lib/dates/local-date";
+import { persistableLocalDate } from "@/lib/meals/log-date";
+import { useLocalToday } from "@/lib/dates/use-local-today";
 import { compressMealImage } from "@/lib/images/compress-image";
 import type { EstimatedMeal } from "@/lib/meals/estimate";
 import { validateImageFile } from "@/lib/meals/image";
 import { insertOwnConfirmedMeal } from "@/lib/meals/persist";
 
 type PhotoEntryProps = {
+  selectedDate?: string;
   onMealSaved?: () => void;
   onCollapse?: () => void;
   onUseText?: () => void;
 };
 
 export function PhotoEntry({
+  selectedDate,
   onMealSaved,
   onCollapse,
   onUseText,
 }: PhotoEntryProps) {
+  const today = useLocalToday();
+  const viewingDate =
+    persistableLocalDate(selectedDate ?? today ?? "", today ?? selectedDate ?? "") ??
+    selectedDate ??
+    today ??
+    "";
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -142,7 +151,7 @@ export function PhotoEntry({
     const result = await insertOwnConfirmedMeal({
       meal,
       rawText: "",
-      localDate: localDateString(),
+      localDate: viewingDate,
       source: "photo",
     });
     setSaving(false);
@@ -271,6 +280,7 @@ export function PhotoEntry({
           saving={saving}
           error={saveError}
           photoPreviewUrl={previewUrl}
+          localDate={viewingDate}
           source="photo"
           onCancel={() => {
             if (saving) return;

@@ -34,9 +34,6 @@ export function HeaderNav() {
 
   return (
     <div className="flex flex-col items-end gap-1 pt-1">
-      <Link href="/history" className={linkClass}>
-        History
-      </Link>
       <Link href="/onboarding" className={linkClass}>
         Edit targets
       </Link>

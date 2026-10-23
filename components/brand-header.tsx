@@ -33,7 +33,7 @@ export function BrandHeader() {
               Eat Snap Track
             </p>
             <h1 className="font-display mt-1 text-2xl font-medium tracking-tight text-foreground">
-              SnapBite
+              SayMeal
             </h1>
           </div>
         )}

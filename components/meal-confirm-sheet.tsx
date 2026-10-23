@@ -154,7 +154,7 @@ export function MealConfirmSheet({
       >
         <div className="flex items-start justify-between px-5 pt-5">
           <div>
-            <p className="font-display text-lg font-medium text-foreground">SnapBite</p>
+            <p className="font-display text-lg font-medium text-foreground">SayMeal</p>
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-forest">
               Eat Snap Track
             </p>

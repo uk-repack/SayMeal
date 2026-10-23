@@ -19,7 +19,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "SnapBite",
+  title: "SayMeal",
   description: "Eat Snap Track. Voice-first, camera-first nutrition tracking.",
 };
 

@@ -166,7 +166,7 @@ export function OnboardingForm({
             {editing ? "Edit your targets" : "Review your estimate"}
           </h2>
           <p className="mt-2 text-sm leading-6 text-stone-500">
-            Adjust anything before saving. SnapBite will use these as today&apos;s
+            Adjust anything before saving. SayMeal will use these as today&apos;s
             targets. Existing meals are left unchanged.
           </p>
         </div>

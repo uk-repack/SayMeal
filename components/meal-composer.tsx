@@ -119,30 +119,34 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
       </h2>
 
       {mode === "collapsed" ? (
-        <div className="flex h-14 items-center rounded-full bg-white shadow-[0_10px_30px_rgba(28,28,25,0.08)]">
-          <button
-            type="button"
-            className="flex min-w-0 flex-1 items-center gap-3 px-5 text-left text-[15px] text-muted"
-            onClick={() => setMode("text")}
-          >
-            <PlusIcon className="h-5 w-5 shrink-0 text-foreground" />
-            <span>What did you eat?</span>
-          </button>
-          <div className="h-6 w-px bg-[#e6e3db]" aria-hidden="true" />
-          <button
-            type="button"
-            className="px-4 text-foreground"
-            onClick={() => setMode("photo")}
-            aria-label="Add a meal photo"
-          >
-            <CameraIcon className="h-6 w-6" />
-          </button>
+        <div className="fixed inset-x-0 bottom-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto w-full max-w-lg px-4 py-3">
+            <div className="flex h-14 items-center rounded-full bg-white shadow-[0_10px_30px_rgba(28,28,25,0.08)]">
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-3 px-5 text-left text-[15px] text-muted"
+                onClick={() => setMode("text")}
+              >
+                <PlusIcon className="h-5 w-5 shrink-0 text-foreground" />
+                <span>What did you eat?</span>
+              </button>
+              <div className="h-6 w-px bg-[#e6e3db]" aria-hidden="true" />
+              <button
+                type="button"
+                className="px-4 text-foreground"
+                onClick={() => setMode("photo")}
+                aria-label="Add a meal photo"
+              >
+                <CameraIcon className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
-      {mode === "text" ? (
+      {mode === "text" && !estimate ? (
         <div
-          className="fixed inset-0 z-30 flex items-end justify-center bg-stone-900/25 sm:items-center"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-stone-900/40 sm:items-center"
           onClick={collapse}
         >
           <div
@@ -202,7 +206,7 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
                 <button
                   type="submit"
                   disabled={!text.trim() || estimating || saving}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-forest py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-[#c5c2b8]"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#245c45] py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-[#c5c2b8] disabled:text-white"
                 >
                   {estimating ? "Estimating…" : "Log meal"}
                   {estimating ? null : <ArrowUpIcon className="h-4 w-4" />}
@@ -226,7 +230,7 @@ export function MealComposer({ onMealSaved }: MealComposerProps) {
         </div>
       ) : null}
 
-      {mode === "photo" ? (
+      {mode === "photo" && !estimate ? (
         <PhotoEntry
           onMealSaved={onMealSaved}
           onCollapse={collapse}

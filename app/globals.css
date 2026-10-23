@@ -10,12 +10,12 @@
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-forest: var(--forest);
-  --color-forest-deep: var(--forest-deep);
+  --color-background: #f3f0e8;
+  --color-foreground: #1c1c19;
+  --color-forest: #245c45;
+  --color-forest-deep: #1b4634;
   --color-cream: #f3f0e8;
-  --color-muted: var(--muted);
+  --color-muted: #8a8980;
   --font-sans: var(--font-geist-sans);
   --font-display: var(--font-fraunces), var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

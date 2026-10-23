@@ -9,6 +9,8 @@ Next: Phase 7 — hands-free polish, errors, production deploy. Do not reimpleme
 
 **History Phase 1:** `/history` browses confirmed meals by local `local_date`. `npm test` 35 passed; lint/typecheck/build pass. No schema/RLS/Gemini change. Phase 7 still not started.
 
+**2026-10-23 estimate overlay:** Log meal / Confirm use opaque `#245c45`. Review portals to `document.body` with `#f3f0e8`. Composer/photo sheets hide while estimate is open. Phase 7 still not started.
+
 | Phase | Objective | Status | Date | Proof |
 | ----- | --------- | ------ | ---- | ----- |
 | 0 | Agent memory + Next.js shell | Done | 2026-10-22 | `npm run lint` and `npm run build` pass; http://localhost:3000 title SnapBite, tagline Eat Snap Track, 390px-wide card |

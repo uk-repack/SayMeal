@@ -159,8 +159,10 @@ export function PhotoEntry({
   const busy = processing || estimating || saving;
 
   return (
+    <>
+      {estimate ? null : (
     <div
-      className="fixed inset-0 z-30 flex items-end justify-center bg-stone-900/25 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-stone-900/40 sm:items-center"
       onClick={onCollapse}
     >
       <div
@@ -242,7 +244,7 @@ export function PhotoEntry({
           type="button"
           onClick={onEstimate}
           disabled={busy || !imageBlob}
-          className="mt-5 w-full rounded-full bg-forest py-3.5 text-base font-medium text-white disabled:cursor-not-allowed disabled:bg-[#c5c2b8]"
+          className="mt-5 w-full rounded-full bg-[#245c45] py-3.5 text-base font-medium text-white disabled:cursor-not-allowed disabled:bg-[#c5c2b8] disabled:text-white"
         >
           {estimating ? "Estimating…" : "Estimate photo"}
         </button>
@@ -260,6 +262,8 @@ export function PhotoEntry({
           </p>
         ) : null}
       </div>
+      </div>
+      )}
 
       {estimate ? (
         <MealConfirmSheet
@@ -281,6 +285,6 @@ export function PhotoEntry({
           onConfirm={onConfirm}
         />
       ) : null}
-    </div>
+    </>
   );
 }

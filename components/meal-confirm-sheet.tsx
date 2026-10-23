@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
+import { createPortal } from "react-dom";
 import { CheckIcon, CloseIcon } from "@/components/icons";
 import { localDateString } from "@/lib/dates/local-date";
 import {
@@ -117,10 +124,15 @@ export function MealConfirmSheet({
   const left = targets
     ? remainingCalories(afterCalories, targets.calorieTarget)
     : null;
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
-  return (
+  const sheet = (
     <div
-      className="fixed inset-0 z-40 flex justify-center bg-cream"
+      className="fixed inset-0 z-[70] flex justify-center bg-[#f3f0e8]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-meal-heading"
@@ -326,7 +338,7 @@ export function MealConfirmSheet({
 
           <button
             type="submit"
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-forest py-3.5 text-base font-medium text-white disabled:cursor-not-allowed disabled:bg-[#c5c2b8]"
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#245c45] py-3.5 text-base font-medium text-white disabled:cursor-not-allowed disabled:bg-[#c5c2b8] disabled:text-white"
             disabled={saving || Boolean(validation.error)}
           >
             {saving ? "Saving…" : "Confirm & log meal"}
@@ -344,6 +356,9 @@ export function MealConfirmSheet({
       </form>
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(sheet, document.body);
 }
 
 function TotalTile({
